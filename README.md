@@ -13,3 +13,7 @@
 当前已包含：
 
 - `sidebar-plugins/resource-booking-plugin`: 通用资源预约边栏插件
+
+## Pages
+
+- 资源预约边栏插件：`https://lanmao202410.github.io/lark-tools/sidebar-plugins/resource-booking-plugin/`
