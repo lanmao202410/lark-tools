@@ -1,4 +1,6 @@
 node_modules/
 dist/
+!sidebar-plugins/resource-booking-plugin/dist/
+!sidebar-plugins/resource-booking-plugin/dist/**
 .env
 .tmp-test-*/
