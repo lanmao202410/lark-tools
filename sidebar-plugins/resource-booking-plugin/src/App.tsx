@@ -879,7 +879,7 @@ export function App() {
         <div>
           <p className="eyebrow">Resource Booking</p>
           <h1>资源时间预约助手</h1>
-          <p className="hero-copy">选择资源和日期，勾选可用时间格后统一预约；连续时间会合并成一条记录。</p>
+          <p className="hero-copy">面向飞书多维表格的通用资源预约工具，支持人员、台架、会议室等资源按小时或按天预约，并自动写入预约记录。</p>
         </div>
       </section>
 
