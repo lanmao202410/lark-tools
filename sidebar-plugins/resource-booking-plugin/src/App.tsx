@@ -1006,7 +1006,7 @@ export function App() {
           <Settings2 size={17} />
           <span>预约表字段配置</span>
         </div>
-        <p className="section-note">先固定预约记录写入哪张表，再配置这张表里的字段。保存后，切换到其它数据表也不会影响预约写入。</p>
+        <p className="section-note">字段配置用于告诉插件：预约表中哪些字段用来写入资源、调度类型、开始/结束时间、使用人和预约状态。</p>
 
         <label className="form-row">
           <span>预约表</span>
