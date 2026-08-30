@@ -30,7 +30,6 @@ import {
   RefreshCw,
   Settings2,
   TimerReset,
-  UserRound,
 } from 'lucide-react';
 
 type LoadState = 'idle' | 'loading' | 'success' | 'error';
@@ -1096,13 +1095,10 @@ export function App() {
         </div>
 
         {activeScheduleMode === '小时' ? (
-          <>
-            <label className="form-row">
-              <span>预约日期</span>
-              <input type="date" value={config.selectedDate} onChange={(event) => updateConfig({ selectedDate: event.target.value })} />
-            </label>
-
-          </>
+          <label className="form-row">
+            <span>预约日期</span>
+            <input type="date" value={config.selectedDate} onChange={(event) => updateConfig({ selectedDate: event.target.value })} />
+          </label>
         ) : null}
       </section>
 
@@ -1116,10 +1112,6 @@ export function App() {
           <Metric label="可预约" value={activeScheduleMode === '天' ? calendarAvailableDays : availableSlots.length} />
           <Metric label="已选择" value={selectedCount} />
           <Metric label="已预约" value={activeScheduleMode === '天' ? calendarOccupiedDays : occupiedSlots} />
-        </div>
-        <div className="context-line">
-          <UserRound size={15} />
-          <span>当前用户 ID：{context?.currentUserId || '待读取'}。预约成功后会写入使用人字段。</span>
         </div>
       </section>
 

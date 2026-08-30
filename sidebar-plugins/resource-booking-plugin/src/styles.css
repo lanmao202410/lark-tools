@@ -398,16 +398,6 @@ h1 {
   line-height: 1;
 }
 
-.context-line {
-  display: flex;
-  gap: 7px;
-  align-items: flex-start;
-  margin-top: 12px;
-  color: #5f6b80;
-  font-size: 12px;
-  line-height: 1.5;
-}
-
 .message {
   display: flex;
   gap: 8px;
