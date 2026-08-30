@@ -8,6 +8,7 @@ import {
   mergeAdjacentSlots,
   resolveBookingDateFields,
   resolveBookingTableId,
+  resolveBookingTimeFields,
   resolveFieldByName,
   resolveResourceOptions,
   startOfLocalDay,
@@ -832,12 +833,13 @@ export function App() {
   async function createBooking(table: ITable, fieldMap: Map<string, IFieldMeta>, range: BookingSlotRange, currentUserId: string, mode: ScheduleMode) {
     const recordId = await table.addRecord();
     const dateFields = resolveBookingDateFields(mode, range);
+    const timeFields = resolveBookingTimeFields(mode, range);
     await setFieldValue(table, fieldMap.get(config.resourceFieldId), recordId, config.selectedResource);
     if (config.scheduleModeFieldId) await setFieldValue(table, fieldMap.get(config.scheduleModeFieldId), recordId, mode);
     if (dateFields && config.startDateFieldId) await setFieldValue(table, fieldMap.get(config.startDateFieldId), recordId, dateFields.startDate);
     if (dateFields && config.endDateFieldId) await setFieldValue(table, fieldMap.get(config.endDateFieldId), recordId, dateFields.endDate);
-    await setFieldValue(table, fieldMap.get(config.startFieldId), recordId, mode === '天' ? startOfLocalDay(range.start) : range.start);
-    await setFieldValue(table, fieldMap.get(config.endFieldId), recordId, mode === '天' ? endOfLocalDay(range.end) : range.end);
+    if (timeFields) await setFieldValue(table, fieldMap.get(config.startFieldId), recordId, timeFields.startTime);
+    if (timeFields) await setFieldValue(table, fieldMap.get(config.endFieldId), recordId, timeFields.endTime);
     await setFieldValue(table, fieldMap.get(config.userFieldId), recordId, '', currentUserId);
     if (config.statusFieldId) await setFieldValue(table, fieldMap.get(config.statusFieldId), recordId, '已预约');
   }

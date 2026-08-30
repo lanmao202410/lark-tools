@@ -81,6 +81,15 @@ export function resolveBookingDateFields(mode: BookingScheduleMode, range: Booki
   };
 }
 
+export function resolveBookingTimeFields(mode: BookingScheduleMode, range: BookingSlotRange): { startTime: number; endTime: number } | null {
+  if (mode !== '小时') return null;
+
+  return {
+    startTime: range.start,
+    endTime: range.end,
+  };
+}
+
 export function resolveFieldByName<T extends NamedField>(fields: T[], names: string[], excludedKeywords: string[] = []): T | undefined {
   const availableFields = fields.filter((field) => !excludedKeywords.some((keyword) => field.name.includes(keyword)));
 

@@ -5,6 +5,7 @@ import {
   resolveFieldByName,
   resolveBookingDateFields,
   resolveBookingTableId,
+  resolveBookingTimeFields,
   resolveResourceOptions,
 } from '../src/bookingSlots.js';
 
@@ -50,6 +51,11 @@ assertDeepEqual(resolveBookingDateFields('小时', { start: day1, end: day2 }), 
 assertDeepEqual(resolveBookingDateFields('天', { start: day1, end: day2 }), {
   startDate: day1,
   endDate: day2,
+});
+assertDeepEqual(resolveBookingTimeFields('天', { start: day1, end: day2 }), null);
+assertDeepEqual(resolveBookingTimeFields('小时', { start: day1, end: day2 }), {
+  startTime: day1,
+  endTime: day2,
 });
 assertDeepEqual(
   resolveFieldByName(
