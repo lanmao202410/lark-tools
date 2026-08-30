@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  buildSlotRanges,
   endOfLocalDay,
   inclusiveDaysOverlap,
   mergeAdjacentSlots,
@@ -76,7 +77,6 @@ type PluginConfig = {
   workStart: string;
   workEnd: string;
   slotMinutes: number;
-  durationMinutes: number;
 };
 
 type ContextState = {
@@ -127,7 +127,6 @@ function defaultConfig(): PluginConfig {
     workStart: '08:00',
     workEnd: '20:00',
     slotMinutes: 60,
-    durationMinutes: 60,
   };
 }
 
@@ -184,12 +183,6 @@ function timeToMinutes(value: string) {
   return hour * 60 + minute;
 }
 
-function minutesToTime(value: number) {
-  const hour = Math.floor(value / 60);
-  const minute = value % 60;
-  return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
-}
-
 function formatSlotTime(timestamp: number) {
   const date = new Date(timestamp);
   return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
@@ -206,14 +199,6 @@ function dateTextFromTimestamp(timestamp: number) {
 function dateLabel(timestamp: number) {
   const date = new Date(timestamp);
   return `${date.getMonth() + 1}月${date.getDate()}日`;
-}
-
-function timestampFor(dateText: string, minutes: number) {
-  const hour = Math.floor(minutes / 60);
-  const minute = minutes % 60;
-  const date = new Date(`${dateText}T00:00:00`);
-  date.setHours(hour, minute, 0, 0);
-  return date.getTime();
 }
 
 function dayTimestampFor(dateText: string) {
@@ -388,31 +373,22 @@ export function App() {
   const calendarDays = useMemo(() => calendarDaysForMonth(calendarMonth), [calendarMonth]);
 
   const slots = useMemo(() => {
-    const startMinutes = timeToMinutes(activeWorkStart);
-    const endMinutes = timeToMinutes(activeWorkEnd);
     if (activeScheduleMode !== '小时') return [];
-    if (!config.selectedDate || !config.selectedResource || startMinutes >= endMinutes) return [];
+    if (!config.selectedDate || !config.selectedResource) return [];
 
-    const list: Slot[] = [];
-    for (let cursor = startMinutes; cursor + config.durationMinutes <= endMinutes; cursor += activeSlotMinutes) {
-      const start = timestampFor(config.selectedDate, cursor);
-      const end = timestampFor(config.selectedDate, cursor + config.durationMinutes);
-      list.push({
-        label: `${minutesToTime(cursor)}-${minutesToTime(cursor + config.durationMinutes)}`,
-        start,
-        end,
+    return buildSlotRanges(config.selectedDate, activeWorkStart, activeWorkEnd, activeSlotMinutes).map((range) => ({
+        label: `${formatSlotTime(range.start)}-${formatSlotTime(range.end)}`,
+        start: range.start,
+        end: range.end,
         occupied:
-          localClaimedSlots.has(slotKey(config.selectedResource, config.selectedDate, start, end)) ||
-          hourBookingsForCurrentDate.some((booking) => intervalsOverlap(start, end, booking.start, booking.end)),
-      });
-    }
-    return list;
+          localClaimedSlots.has(slotKey(config.selectedResource, config.selectedDate, range.start, range.end)) ||
+          hourBookingsForCurrentDate.some((booking) => intervalsOverlap(range.start, range.end, booking.start, booking.end)),
+      }));
   }, [
     activeScheduleMode,
     activeSlotMinutes,
     activeWorkEnd,
     activeWorkStart,
-    config.durationMinutes,
     config.selectedDate,
     config.selectedResource,
     hourBookingsForCurrentDate,
@@ -504,7 +480,7 @@ export function App() {
     setSelectedSlotKeys(new Set());
     setDaySelectionStart(null);
     setDaySelectionEnd(null);
-  }, [activeScheduleMode, config.selectedDate, config.selectedResource, config.workStart, config.workEnd, config.slotMinutes, config.durationMinutes]);
+  }, [activeScheduleMode, config.selectedDate, config.selectedResource, config.workStart, config.workEnd, config.slotMinutes]);
 
   useEffect(() => {
     let disposed = false;
@@ -793,7 +769,7 @@ export function App() {
     if (!config.selectedResource) return '请先选择要预约的资源。';
     if (!config.selectedDate) return '请先选择预约日期。';
     if (timeToMinutes(config.workStart) >= timeToMinutes(config.workEnd)) return '可用开始时间必须早于可用结束时间。';
-    if (config.durationMinutes <= 0 || config.slotMinutes <= 0) return '时间粒度和占用时长必须大于 0。';
+    if (config.slotMinutes <= 0) return '时间粒度必须大于 0。';
     return '';
   }
 
@@ -1126,16 +1102,6 @@ export function App() {
               <input type="date" value={config.selectedDate} onChange={(event) => updateConfig({ selectedDate: event.target.value })} />
             </label>
 
-            <label className="form-row">
-              <span>占用时长，分钟</span>
-              <input
-                type="number"
-                min={5}
-                step={5}
-                value={config.durationMinutes}
-                onChange={(event) => updateConfig({ durationMinutes: Number(event.target.value) })}
-              />
-            </label>
           </>
         ) : null}
       </section>

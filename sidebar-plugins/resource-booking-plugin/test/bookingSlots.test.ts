@@ -1,4 +1,10 @@
-import { inclusiveDaysOverlap, mergeAdjacentSlots, resolveBookingTableId, resolveResourceOptions } from '../src/bookingSlots.js';
+import {
+  buildSlotRanges,
+  inclusiveDaysOverlap,
+  mergeAdjacentSlots,
+  resolveBookingTableId,
+  resolveResourceOptions,
+} from '../src/bookingSlots.js';
 
 function assertDeepEqual(actual: unknown, expected: unknown) {
   const actualJson = JSON.stringify(actual);
@@ -45,4 +51,16 @@ assertDeepEqual(
 assertDeepEqual(
   resolveBookingTableId('tbl-deleted', 'tbl-current', ['tbl-booking', 'tbl-current']),
   'tbl-current',
+);
+
+const halfHourSlots = buildSlotRanges('2026-08-30', '09:00', '10:00', 30);
+assertDeepEqual(
+  halfHourSlots.map((slot) => ({
+    start: new Date(slot.start).toTimeString().slice(0, 5),
+    end: new Date(slot.end).toTimeString().slice(0, 5),
+  })),
+  [
+    { start: '09:00', end: '09:30' },
+    { start: '09:30', end: '10:00' },
+  ],
 );

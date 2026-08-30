@@ -3,6 +3,35 @@ export type BookingSlotRange = {
   end: number;
 };
 
+function timeToMinutes(value: string): number {
+  const [hour, minute] = value.split(':').map(Number);
+  return hour * 60 + minute;
+}
+
+function timestampFor(dateText: string, minutes: number): number {
+  const hour = Math.floor(minutes / 60);
+  const minute = minutes % 60;
+  const date = new Date(`${dateText}T00:00:00`);
+  date.setHours(hour, minute, 0, 0);
+  return date.getTime();
+}
+
+export function buildSlotRanges(dateText: string, workStart: string, workEnd: string, slotMinutes: number): BookingSlotRange[] {
+  const startMinutes = timeToMinutes(workStart);
+  const endMinutes = timeToMinutes(workEnd);
+  if (!dateText || startMinutes >= endMinutes || slotMinutes <= 0) return [];
+
+  const slots: BookingSlotRange[] = [];
+  for (let cursor = startMinutes; cursor + slotMinutes <= endMinutes; cursor += slotMinutes) {
+    slots.push({
+      start: timestampFor(dateText, cursor),
+      end: timestampFor(dateText, cursor + slotMinutes),
+    });
+  }
+
+  return slots;
+}
+
 export function mergeAdjacentSlots(slots: BookingSlotRange[]): BookingSlotRange[] {
   const sortedSlots = [...slots].sort((slotA, slotB) => slotA.start - slotB.start || slotA.end - slotB.end);
   const mergedSlots: BookingSlotRange[] = [];
