@@ -3,6 +3,8 @@ export type BookingSlotRange = {
   end: number;
 };
 
+export type BookingScheduleMode = '小时' | '天';
+
 function timeToMinutes(value: string): number {
   const [hour, minute] = value.split(':').map(Number);
   return hour * 60 + minute;
@@ -63,6 +65,15 @@ export function endOfLocalDay(timestamp: number): number {
 
 export function inclusiveDaysOverlap(startA: number, endA: number, startB: number, endB: number): boolean {
   return startOfLocalDay(startA) <= endOfLocalDay(endB) && startOfLocalDay(startB) <= endOfLocalDay(endA);
+}
+
+export function resolveBookingDateFields(mode: BookingScheduleMode, range: BookingSlotRange): { startDate: number; endDate: number } | null {
+  if (mode !== '天') return null;
+
+  return {
+    startDate: startOfLocalDay(range.start),
+    endDate: startOfLocalDay(range.end),
+  };
 }
 
 export function resolveResourceOptions(configuredResources: string[], fallbackResources: string[], hasResourceConfig = false): string[] {

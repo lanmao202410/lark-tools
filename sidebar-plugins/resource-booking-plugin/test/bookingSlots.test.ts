@@ -2,6 +2,7 @@ import {
   buildSlotRanges,
   inclusiveDaysOverlap,
   mergeAdjacentSlots,
+  resolveBookingDateFields,
   resolveBookingTableId,
   resolveResourceOptions,
 } from '../src/bookingSlots.js';
@@ -44,6 +45,11 @@ assertDeepEqual(inclusiveDaysOverlap(day1, day2, day3, day4), false);
 assertDeepEqual(resolveResourceOptions(['台架A', '工程师D'], ['A', 'B', '会议室C']), ['台架A', '工程师D']);
 assertDeepEqual(resolveResourceOptions([], ['A', 'B', '会议室C']), ['A', 'B', '会议室C']);
 assertDeepEqual(resolveResourceOptions([], ['A', 'B'], true), []);
+assertDeepEqual(resolveBookingDateFields('小时', { start: day1, end: day2 }), null);
+assertDeepEqual(resolveBookingDateFields('天', { start: day1, end: day2 }), {
+  startDate: day1,
+  endDate: day2,
+});
 
 assertDeepEqual(
   resolveBookingTableId('tbl-booking', 'tbl-current', ['tbl-booking', 'tbl-resource']),

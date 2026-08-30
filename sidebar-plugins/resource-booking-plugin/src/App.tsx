@@ -1,13 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  type BookingScheduleMode,
+  type BookingSlotRange,
   buildSlotRanges,
   endOfLocalDay,
   inclusiveDaysOverlap,
   mergeAdjacentSlots,
+  resolveBookingDateFields,
   resolveBookingTableId,
   resolveResourceOptions,
   startOfLocalDay,
-  type BookingSlotRange,
 } from './bookingSlots';
 import {
   bitable,
@@ -34,7 +36,7 @@ import {
 
 type LoadState = 'idle' | 'loading' | 'success' | 'error';
 type ClaimState = 'idle' | 'claiming' | 'success' | 'error';
-type ScheduleMode = '小时' | '天';
+type ScheduleMode = BookingScheduleMode;
 type ActiveTab = 'booking' | 'settings';
 
 type FieldOption = {
@@ -828,10 +830,11 @@ export function App() {
 
   async function createBooking(table: ITable, fieldMap: Map<string, IFieldMeta>, range: BookingSlotRange, currentUserId: string, mode: ScheduleMode) {
     const recordId = await table.addRecord();
+    const dateFields = resolveBookingDateFields(mode, range);
     await setFieldValue(table, fieldMap.get(config.resourceFieldId), recordId, config.selectedResource);
     if (config.scheduleModeFieldId) await setFieldValue(table, fieldMap.get(config.scheduleModeFieldId), recordId, mode);
-    if (config.startDateFieldId) await setFieldValue(table, fieldMap.get(config.startDateFieldId), recordId, startOfLocalDay(range.start));
-    if (config.endDateFieldId) await setFieldValue(table, fieldMap.get(config.endDateFieldId), recordId, startOfLocalDay(range.end));
+    if (dateFields && config.startDateFieldId) await setFieldValue(table, fieldMap.get(config.startDateFieldId), recordId, dateFields.startDate);
+    if (dateFields && config.endDateFieldId) await setFieldValue(table, fieldMap.get(config.endDateFieldId), recordId, dateFields.endDate);
     await setFieldValue(table, fieldMap.get(config.startFieldId), recordId, mode === '天' ? startOfLocalDay(range.start) : range.start);
     await setFieldValue(table, fieldMap.get(config.endFieldId), recordId, mode === '天' ? endOfLocalDay(range.end) : range.end);
     await setFieldValue(table, fieldMap.get(config.userFieldId), recordId, '', currentUserId);
