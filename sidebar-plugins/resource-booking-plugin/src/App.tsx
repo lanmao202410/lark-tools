@@ -3,6 +3,7 @@ import {
   endOfLocalDay,
   inclusiveDaysOverlap,
   mergeAdjacentSlots,
+  resolveBookingTableId,
   resolveResourceOptions,
   startOfLocalDay,
   type BookingSlotRange,
@@ -14,6 +15,7 @@ import {
   type IFieldMeta,
   type ISingleSelectField,
   type ITable,
+  type ITableMeta,
   type ITextField,
   type IUserField,
 } from '@lark-base-open/js-sdk';
@@ -60,6 +62,7 @@ type Slot = {
 };
 
 type PluginConfig = {
+  bookingTableId: string;
   resourceFieldId: string;
   scheduleModeFieldId: string;
   startDateFieldId: string;
@@ -78,6 +81,8 @@ type PluginConfig = {
 
 type ContextState = {
   tableName: string;
+  tableId: string;
+  tableMetas: ITableMeta[];
   fields: IFieldMeta[];
   records: Booking[];
   resourceConfigs: ResourceConfig[];
@@ -108,6 +113,7 @@ function todayText() {
 
 function defaultConfig(): PluginConfig {
   return {
+    bookingTableId: '',
     resourceFieldId: '',
     scheduleModeFieldId: '',
     startDateFieldId: '',
@@ -326,6 +332,9 @@ async function setFieldValue(table: ITable, field: IFieldMeta | undefined, recor
 
 export function App() {
   const [config, setConfig] = useState<PluginConfig>(() => loadSavedConfig());
+  const [draftConfig, setDraftConfig] = useState<PluginConfig>(() => loadSavedConfig());
+  const [draftFields, setDraftFields] = useState<IFieldMeta[]>([]);
+  const [configSavedNotice, setConfigSavedNotice] = useState('');
   const [context, setContext] = useState<ContextState | null>(null);
   const [loadStatus, setLoadStatus] = useState<LoadState>('idle');
   const [claimStatus, setClaimStatus] = useState<ClaimState>('idle');
@@ -340,6 +349,7 @@ export function App() {
   const pendingSlotKeysRef = useRef<Set<string>>(new Set());
 
   const fieldMap = useMemo(() => new Map(context?.fields.map((field) => [field.id, field]) ?? []), [context]);
+  const draftFieldMap = useMemo(() => new Map(draftFields.map((field) => [field.id, field])), [draftFields]);
   const resourceField = fieldMap.get(config.resourceFieldId);
   const statusField = fieldMap.get(config.statusFieldId);
 
@@ -453,6 +463,38 @@ export function App() {
   }, [config]);
 
   useEffect(() => {
+    setDraftConfig(config);
+  }, [config.bookingTableId]);
+
+  useEffect(() => {
+    let disposed = false;
+
+    async function loadDraftTableFields() {
+      try {
+        const table = draftConfig.bookingTableId
+          ? await bitable.base.getTableById(draftConfig.bookingTableId)
+          : await bitable.base.getActiveTable();
+        const tableMeta = await table.getMeta();
+        const fields = await table.getFieldMetaList();
+        if (!disposed) {
+          setDraftFields(fields);
+          setDraftConfig((current) => {
+            if ((current.bookingTableId || tableMeta.id) !== tableMeta.id) return current;
+            return normalizeConfig(fields, { ...current, bookingTableId: tableMeta.id });
+          });
+        }
+      } catch {
+        if (!disposed) setDraftFields([]);
+      }
+    }
+
+    loadDraftTableFields();
+    return () => {
+      disposed = true;
+    };
+  }, [draftConfig.bookingTableId]);
+
+  useEffect(() => {
     if (resourceOptions.length && !resourceOptions.includes(config.selectedResource)) {
       updateConfig({ selectedResource: resourceOptions[0] });
     }
@@ -476,8 +518,13 @@ export function App() {
       }, 450);
     };
 
-    bitable.base
-      .getActiveTable()
+    const bookingTableId = config.bookingTableId;
+
+    const tablePromise = bookingTableId
+      ? bitable.base.getTableById(bookingTableId)
+      : bitable.base.getActiveTable();
+
+    tablePromise
       .then((table) => {
         if (disposed) return;
         cleanups = [table.onRecordAdd(scheduleRefresh), table.onRecordDelete(scheduleRefresh), table.onRecordModify(scheduleRefresh)];
@@ -503,6 +550,7 @@ export function App() {
       cleanups.forEach((cleanup) => cleanup());
     };
   }, [
+    config.bookingTableId,
     config.resourceFieldId,
     config.startFieldId,
     config.endFieldId,
@@ -561,14 +609,21 @@ export function App() {
     if (!options.keepMessage) setMessage('');
 
     try {
-      const table = await bitable.base.getActiveTable();
+      const tableMetas = await bitable.base.getTableMetaList();
+      const activeTable = await bitable.base.getActiveTable();
+      const activeTableMeta = await activeTable.getMeta();
+      const bookingTableId = resolveBookingTableId(config.bookingTableId, activeTableMeta.id, tableMetas.map((table) => table.id));
+      const table = bookingTableId === activeTableMeta.id ? activeTable : await bitable.base.getTableById(bookingTableId);
       const tableName = await table.getName();
       const fields = await table.getFieldMetaList();
       const currentUserId = await bitable.bridge.getUserId();
 
-      const nextConfig = normalizeConfig(fields, config);
+      const nextConfig = normalizeConfig(fields, { ...config, bookingTableId });
       if (JSON.stringify(nextConfig) !== JSON.stringify(config)) {
         setConfig(nextConfig);
+        if (!draftConfig.bookingTableId || draftConfig.bookingTableId === config.bookingTableId) {
+          setDraftConfig(nextConfig);
+        }
       }
 
       const resourceConfigs = await loadResourceConfigs();
@@ -613,6 +668,8 @@ export function App() {
 
       setContext({
         tableName,
+        tableId: bookingTableId,
+        tableMetas,
         fields,
         records,
         resourceConfigs,
@@ -681,7 +738,54 @@ export function App() {
     setConfig((current) => ({ ...current, ...partial }));
   }
 
+  function updateDraftConfig(partial: Partial<PluginConfig>) {
+    setConfigSavedNotice('');
+    setDraftConfig((current) => ({ ...current, ...partial }));
+  }
+
+  function changeDraftBookingTable(bookingTableId: string) {
+    setConfigSavedNotice('');
+    setDraftConfig((current) => ({
+      ...current,
+      bookingTableId,
+      resourceFieldId: '',
+      scheduleModeFieldId: '',
+      startDateFieldId: '',
+      endDateFieldId: '',
+      startFieldId: '',
+      endFieldId: '',
+      userFieldId: '',
+      statusFieldId: '',
+    }));
+  }
+
+  async function saveDraftConfig() {
+    try {
+      const table = draftConfig.bookingTableId
+        ? await bitable.base.getTableById(draftConfig.bookingTableId)
+        : await bitable.base.getActiveTable();
+      const fields = await table.getFieldMetaList();
+      const tableMeta = await table.getMeta();
+      const nextConfig = normalizeConfig(fields, { ...draftConfig, bookingTableId: tableMeta.id });
+      setConfig(nextConfig);
+      setDraftConfig(nextConfig);
+      setDraftFields(fields);
+      saveConfig(nextConfig);
+      setConfigSavedNotice('预约表配置已保存。');
+      await loadContext({ keepMessage: true });
+    } catch (error) {
+      setConfigSavedNotice('');
+      setClaimStatus('error');
+      setMessage(getErrorMessage(error));
+    }
+  }
+
+  async function getBookingTable() {
+    return config.bookingTableId ? bitable.base.getTableById(config.bookingTableId) : bitable.base.getActiveTable();
+  }
+
   function requiredConfigError() {
+    if (!config.bookingTableId) return '请先保存预约表配置。';
     if (!config.resourceFieldId) return '请先选择资源字段。';
     if (!config.startFieldId) return '请先选择开始时间字段。';
     if (!config.endFieldId) return '请先选择结束时间字段。';
@@ -721,7 +825,7 @@ export function App() {
   }
 
   async function hasConflict(range: BookingSlotRange, mode: ScheduleMode) {
-    const table = await bitable.base.getActiveTable();
+    const table = await getBookingTable();
     const recordIds = await table.getRecordIdList();
     for (const recordId of recordIds) {
       const resource = cellToText(await table.getCellValue(config.resourceFieldId, recordId));
@@ -828,7 +932,7 @@ export function App() {
         }
       }
 
-      const table = await bitable.base.getActiveTable();
+      const table = await getBookingTable();
       const fields = await table.getFieldMetaList();
       const latestFieldMap = new Map(fields.map((field) => [field.id, field]));
       const currentUserId = await bitable.bridge.getUserId();
@@ -863,11 +967,19 @@ export function App() {
   }
 
   const fields = context?.fields ?? [];
+  const tableOptions = context?.tableMetas ?? [];
+  const draftTableName = tableOptions.find((table) => table.id === draftConfig.bookingTableId)?.name ?? context?.tableName ?? '请选择预约表';
+  const hasUnsavedConfig = JSON.stringify(draftConfig) !== JSON.stringify(config);
   const resourceFields = fields.filter((field) => field.type === FieldType.Text || field.type === FieldType.SingleSelect).map(fieldToOption);
   const dateFields = fields.filter((field) => field.type === FieldType.DateTime).map(fieldToOption);
   const userFields = fields.filter((field) => field.type === FieldType.User).map(fieldToOption);
   const statusFields = fields.filter((field) => field.type === FieldType.SingleSelect || field.type === FieldType.Text).map(fieldToOption);
   const scheduleModeFields = fields.filter((field) => field.type === FieldType.SingleSelect || field.type === FieldType.Text).map(fieldToOption);
+  const draftResourceFields = draftFields.filter((field) => field.type === FieldType.Text || field.type === FieldType.SingleSelect).map(fieldToOption);
+  const draftDateFields = draftFields.filter((field) => field.type === FieldType.DateTime).map(fieldToOption);
+  const draftUserFields = draftFields.filter((field) => field.type === FieldType.User).map(fieldToOption);
+  const draftStatusFields = draftFields.filter((field) => field.type === FieldType.SingleSelect || field.type === FieldType.Text).map(fieldToOption);
+  const draftScheduleModeFields = draftFields.filter((field) => field.type === FieldType.SingleSelect || field.type === FieldType.Text).map(fieldToOption);
   const missingMessage = requiredConfigError();
 
   return (
@@ -886,7 +998,7 @@ export function App() {
       <section className="panel">
         <div className="panel-heading">
           <div>
-            <span className="label">当前数据表</span>
+            <span className="label">当前预约表</span>
             <strong>{context?.tableName ?? '等待读取'}</strong>
           </div>
           <StatusBadge status={loadStatus} />
@@ -915,27 +1027,46 @@ export function App() {
           <Settings2 size={17} />
           <span>预约表字段配置</span>
         </div>
-        <p className="section-note">这里配置的是新增预约记录时要写入的字段，资源清单来自“资源配置表”。</p>
+        <p className="section-note">先固定预约记录写入哪张表，再配置这张表里的字段。保存后，切换到其它数据表也不会影响预约写入。</p>
+
+        <label className="form-row">
+          <span>预约表</span>
+          <select value={draftConfig.bookingTableId || context?.tableId || ''} onChange={(event) => changeDraftBookingTable(event.target.value)}>
+            {tableOptions.length ? null : <option value="">待读取数据表</option>}
+            {tableOptions.map((table) => (
+              <option key={table.id} value={table.id}>
+                {table.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <p className="section-note">当前选择：{draftTableName}</p>
 
         <div className="field-group">
           <div className="field-group-title">通用字段</div>
-        <FieldSelect label="资源字段" value={config.resourceFieldId} fields={resourceFields} onChange={(resourceFieldId) => updateConfig({ resourceFieldId })} />
-        <FieldSelect label="调度类型字段" value={config.scheduleModeFieldId} fields={scheduleModeFields} optional onChange={(scheduleModeFieldId) => updateConfig({ scheduleModeFieldId })} />
-        <FieldSelect label="使用人字段" value={config.userFieldId} fields={userFields} onChange={(userFieldId) => updateConfig({ userFieldId })} />
-        <FieldSelect label="状态字段" value={config.statusFieldId} fields={statusFields} optional onChange={(statusFieldId) => updateConfig({ statusFieldId })} />
+        <FieldSelect label="资源字段" value={draftConfig.resourceFieldId} fields={draftResourceFields} onChange={(resourceFieldId) => updateDraftConfig({ resourceFieldId })} />
+        <FieldSelect label="调度类型字段" value={draftConfig.scheduleModeFieldId} fields={draftScheduleModeFields} optional onChange={(scheduleModeFieldId) => updateDraftConfig({ scheduleModeFieldId })} />
+        <FieldSelect label="使用人字段" value={draftConfig.userFieldId} fields={draftUserFields} onChange={(userFieldId) => updateDraftConfig({ userFieldId })} />
+        <FieldSelect label="状态字段" value={draftConfig.statusFieldId} fields={draftStatusFields} optional onChange={(statusFieldId) => updateDraftConfig({ statusFieldId })} />
         </div>
 
         <div className="field-group">
           <div className="field-group-title">按小时预约字段</div>
-          <FieldSelect label="开始时间字段" value={config.startFieldId} fields={dateFields} onChange={(startFieldId) => updateConfig({ startFieldId })} />
-          <FieldSelect label="结束时间字段" value={config.endFieldId} fields={dateFields} onChange={(endFieldId) => updateConfig({ endFieldId })} />
+          <FieldSelect label="开始时间字段" value={draftConfig.startFieldId} fields={draftDateFields} onChange={(startFieldId) => updateDraftConfig({ startFieldId })} />
+          <FieldSelect label="结束时间字段" value={draftConfig.endFieldId} fields={draftDateFields} onChange={(endFieldId) => updateDraftConfig({ endFieldId })} />
         </div>
 
         <div className="field-group">
           <div className="field-group-title">按天预约字段</div>
-          <FieldSelect label="开始日期字段" value={config.startDateFieldId} fields={dateFields} optional onChange={(startDateFieldId) => updateConfig({ startDateFieldId })} />
-          <FieldSelect label="结束日期字段" value={config.endDateFieldId} fields={dateFields} optional onChange={(endDateFieldId) => updateConfig({ endDateFieldId })} />
+          <FieldSelect label="开始日期字段" value={draftConfig.startDateFieldId} fields={draftDateFields} optional onChange={(startDateFieldId) => updateDraftConfig({ startDateFieldId })} />
+          <FieldSelect label="结束日期字段" value={draftConfig.endDateFieldId} fields={draftDateFields} optional onChange={(endDateFieldId) => updateDraftConfig({ endDateFieldId })} />
         </div>
+
+        <button className="secondary-button" type="button" onClick={saveDraftConfig} disabled={!tableOptions.length || !hasUnsavedConfig}>
+          <CheckCircle2 size={17} />
+          <span>{hasUnsavedConfig ? '保存预约表配置' : '配置已保存'}</span>
+        </button>
+        {configSavedNotice ? <p className="section-note success-note">{configSavedNotice}</p> : null}
       </section>
       <section className="panel">
         <div className="section-title">
@@ -995,50 +1126,16 @@ export function App() {
               <input type="date" value={config.selectedDate} onChange={(event) => updateConfig({ selectedDate: event.target.value })} />
             </label>
 
-            <div className="form-grid">
-              <label className="form-row">
-                <span>可用开始</span>
-                <input
-                  type="time"
-                  value={activeWorkStart}
-                  disabled={Boolean(selectedResourceConfig)}
-                  onChange={(event) => updateConfig({ workStart: event.target.value })}
-                />
-              </label>
-              <label className="form-row">
-                <span>可用结束</span>
-                <input
-                  type="time"
-                  value={activeWorkEnd}
-                  disabled={Boolean(selectedResourceConfig)}
-                  onChange={(event) => updateConfig({ workEnd: event.target.value })}
-                />
-              </label>
-            </div>
-
-            <div className="form-grid">
-              <label className="form-row">
-                <span>时间粒度，分钟</span>
-                <input
-                  type="number"
-                  min={5}
-                  step={5}
-                  value={activeSlotMinutes}
-                  disabled={Boolean(selectedResourceConfig)}
-                  onChange={(event) => updateConfig({ slotMinutes: Number(event.target.value) })}
-                />
-              </label>
-              <label className="form-row">
-                <span>占用时长，分钟</span>
-                <input
-                  type="number"
-                  min={5}
-                  step={5}
-                  value={config.durationMinutes}
-                  onChange={(event) => updateConfig({ durationMinutes: Number(event.target.value) })}
-                />
-              </label>
-            </div>
+            <label className="form-row">
+              <span>占用时长，分钟</span>
+              <input
+                type="number"
+                min={5}
+                step={5}
+                value={config.durationMinutes}
+                onChange={(event) => updateConfig({ durationMinutes: Number(event.target.value) })}
+              />
+            </label>
           </>
         ) : null}
       </section>

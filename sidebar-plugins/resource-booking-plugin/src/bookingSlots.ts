@@ -44,3 +44,11 @@ export function resolveResourceOptions(configuredResources: string[], fallbackRe
 
   return Array.from(new Set(fallbackResources.filter(Boolean)));
 }
+
+export function resolveBookingTableId(savedTableId: string, activeTableId: string, availableTableIds: string[]): string {
+  if (savedTableId && availableTableIds.includes(savedTableId)) {
+    return savedTableId;
+  }
+
+  return activeTableId;
+}

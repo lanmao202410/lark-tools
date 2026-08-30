@@ -1,4 +1,4 @@
-import { inclusiveDaysOverlap, mergeAdjacentSlots, resolveResourceOptions } from '../src/bookingSlots.js';
+import { inclusiveDaysOverlap, mergeAdjacentSlots, resolveBookingTableId, resolveResourceOptions } from '../src/bookingSlots.js';
 
 function assertDeepEqual(actual: unknown, expected: unknown) {
   const actualJson = JSON.stringify(actual);
@@ -37,3 +37,12 @@ assertDeepEqual(inclusiveDaysOverlap(day1, day2, day3, day4), false);
 
 assertDeepEqual(resolveResourceOptions(['台架A', '工程师D'], ['A', 'B', '会议室C']), ['台架A', '工程师D']);
 assertDeepEqual(resolveResourceOptions([], ['A', 'B', '会议室C']), ['A', 'B', '会议室C']);
+
+assertDeepEqual(
+  resolveBookingTableId('tbl-booking', 'tbl-current', ['tbl-booking', 'tbl-resource']),
+  'tbl-booking',
+);
+assertDeepEqual(
+  resolveBookingTableId('tbl-deleted', 'tbl-current', ['tbl-booking', 'tbl-current']),
+  'tbl-current',
+);
