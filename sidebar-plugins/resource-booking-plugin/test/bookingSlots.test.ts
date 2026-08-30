@@ -43,6 +43,7 @@ assertDeepEqual(inclusiveDaysOverlap(day1, day2, day3, day4), false);
 
 assertDeepEqual(resolveResourceOptions(['台架A', '工程师D'], ['A', 'B', '会议室C']), ['台架A', '工程师D']);
 assertDeepEqual(resolveResourceOptions([], ['A', 'B', '会议室C']), ['A', 'B', '会议室C']);
+assertDeepEqual(resolveResourceOptions([], ['A', 'B'], true), []);
 
 assertDeepEqual(
   resolveBookingTableId('tbl-booking', 'tbl-current', ['tbl-booking', 'tbl-resource']),

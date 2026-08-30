@@ -65,9 +65,9 @@ export function inclusiveDaysOverlap(startA: number, endA: number, startB: numbe
   return startOfLocalDay(startA) <= endOfLocalDay(endB) && startOfLocalDay(startB) <= endOfLocalDay(endA);
 }
 
-export function resolveResourceOptions(configuredResources: string[], fallbackResources: string[]): string[] {
+export function resolveResourceOptions(configuredResources: string[], fallbackResources: string[], hasResourceConfig = false): string[] {
   const enabledConfiguredResources = Array.from(new Set(configuredResources.filter(Boolean)));
-  if (enabledConfiguredResources.length) {
+  if (hasResourceConfig || enabledConfiguredResources.length) {
     return enabledConfiguredResources;
   }
 

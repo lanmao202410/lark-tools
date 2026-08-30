@@ -345,7 +345,7 @@ export function App() {
   const resourceOptions = useMemo(() => {
     const configuredResources = context?.resourceConfigs.filter((resource) => resource.enabled).map((resource) => resource.name) ?? [];
     const fallbackResources = [...resourceFieldOptions, ...(context?.resourceValues ?? [])];
-    return resolveResourceOptions(configuredResources, fallbackResources);
+    return resolveResourceOptions(configuredResources, fallbackResources, Boolean(context?.resourceConfigs.length));
   }, [context?.resourceConfigs, context?.resourceValues, resourceFieldOptions]);
 
   const selectedResourceConfig = useMemo(() => {
