@@ -5,6 +5,11 @@ export type BookingSlotRange = {
 
 export type BookingScheduleMode = '小时' | '天';
 
+export type NamedField = {
+  id: string;
+  name: string;
+};
+
 function timeToMinutes(value: string): number {
   const [hour, minute] = value.split(':').map(Number);
   return hour * 60 + minute;
@@ -74,6 +79,15 @@ export function resolveBookingDateFields(mode: BookingScheduleMode, range: Booki
     startDate: startOfLocalDay(range.start),
     endDate: startOfLocalDay(range.end),
   };
+}
+
+export function resolveFieldByName<T extends NamedField>(fields: T[], names: string[], excludedKeywords: string[] = []): T | undefined {
+  const availableFields = fields.filter((field) => !excludedKeywords.some((keyword) => field.name.includes(keyword)));
+
+  return (
+    availableFields.find((field) => names.some((name) => field.name === name)) ??
+    availableFields.find((field) => names.some((name) => field.name.includes(name)))
+  );
 }
 
 export function resolveResourceOptions(configuredResources: string[], fallbackResources: string[], hasResourceConfig = false): string[] {

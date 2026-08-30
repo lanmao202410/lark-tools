@@ -84,7 +84,7 @@ function pluginMock({ selected = false, day = false } = {}) {
   return `
     <div class="plugin">
       <div class="plugin-header">
-        <h2 class="plugin-title">资源时间预约助手</h2>
+        <h2 class="plugin-title">资源预约助手</h2>
         <p class="plugin-copy">人员、台架、会议室等资源按小时或按天预约，自动写入多维表格。</p>
       </div>
       <div class="tabs"><div class="tab">预约</div><div class="tab" style="background:#fff;color:#64748b;border:1px solid #e2e8f0;">配置</div></div>
@@ -209,12 +209,12 @@ function videoHtml() {
       .hidden { display:none; }
     </style></head><body>
       <main class="stage">
-        <h1>资源时间预约助手</h1>
+        <h1>资源预约助手</h1>
         <p class="subtitle">选择资源和时间，插件自动写入预约记录，并把已预约时间置灰。</p>
         <div class="demo-wrap">
           <div class="plugin">
             <div class="plugin-header">
-              <h2 class="plugin-title">资源时间预约助手</h2>
+              <h2 class="plugin-title">资源预约助手</h2>
               <p class="plugin-copy">人员、台架、会议室等资源按小时或按天预约。</p>
             </div>
             <div class="tabs"><div class="tab">预约</div><div class="tab" style="background:#fff;color:#64748b;border:1px solid #e2e8f0;">配置</div></div>

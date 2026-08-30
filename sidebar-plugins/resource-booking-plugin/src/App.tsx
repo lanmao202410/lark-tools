@@ -8,6 +8,7 @@ import {
   mergeAdjacentSlots,
   resolveBookingDateFields,
   resolveBookingTableId,
+  resolveFieldByName,
   resolveResourceOptions,
   startOfLocalDay,
 } from './bookingSlots';
@@ -260,7 +261,7 @@ function pickField(fields: IFieldMeta[], type: FieldType, keywords: string[]) {
 }
 
 function findFieldByName(fields: IFieldMeta[], names: string[]) {
-  return fields.find((field) => names.some((name) => field.name === name || field.name.includes(name)));
+  return resolveFieldByName(fields, names);
 }
 
 function timeTextFromCell(value: unknown, fallback: string) {
@@ -539,7 +540,7 @@ export function App() {
     try {
       const resourceTable = await bitable.base.getTableByName('资源配置表');
       const resourceFields = await resourceTable.getFieldMetaList();
-      const nameField = findFieldByName(resourceFields, ['资源名称', '资源']);
+      const nameField = resolveFieldByName(resourceFields, ['资源名称', '名称', '资源'], ['类型']);
       const typeField = findFieldByName(resourceFields, ['资源类型', '类型']);
       const modeField = findFieldByName(resourceFields, ['调度类型', '预约类型']);
       const enabledField = findFieldByName(resourceFields, ['是否启用', '是否可预约', '启用']);
@@ -968,7 +969,7 @@ export function App() {
         </div>
         <div>
           <p className="eyebrow">Resource Booking</p>
-          <h1>资源时间预约助手</h1>
+          <h1>资源预约助手</h1>
           <p className="hero-copy">面向飞书多维表格的通用资源预约工具，支持人员、台架、会议室等资源按小时或按天预约，并自动写入预约记录。</p>
         </div>
       </section>

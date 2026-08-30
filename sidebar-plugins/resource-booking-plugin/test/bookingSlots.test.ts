@@ -2,6 +2,7 @@ import {
   buildSlotRanges,
   inclusiveDaysOverlap,
   mergeAdjacentSlots,
+  resolveFieldByName,
   resolveBookingDateFields,
   resolveBookingTableId,
   resolveResourceOptions,
@@ -50,6 +51,27 @@ assertDeepEqual(resolveBookingDateFields('天', { start: day1, end: day2 }), {
   startDate: day1,
   endDate: day2,
 });
+assertDeepEqual(
+  resolveFieldByName(
+    [
+      { id: 'field-type', name: '资源类型' },
+      { id: 'field-name', name: '资源名称' },
+    ],
+    ['资源名称', '资源'],
+  )?.id,
+  'field-name',
+);
+assertDeepEqual(
+  resolveFieldByName(
+    [
+      { id: 'field-type', name: '资源类型' },
+      { id: 'field-name', name: '名称' },
+    ],
+    ['资源名称', '名称', '资源'],
+    ['类型'],
+  )?.id,
+  'field-name',
+);
 
 assertDeepEqual(
   resolveBookingTableId('tbl-booking', 'tbl-current', ['tbl-booking', 'tbl-resource']),
