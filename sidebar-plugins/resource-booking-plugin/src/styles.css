@@ -582,6 +582,11 @@ h1 {
   background: #15803d;
 }
 
+.primary-button span,
+.primary-button svg {
+  color: #ffffff;
+}
+
 .primary-button:disabled {
   cursor: not-allowed;
   opacity: 0.72;
